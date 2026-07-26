@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Practice Deadline Tracker</title>
+<style>
+  :root{
+    --ink:#12242e;--ink-soft:#3a4f59;--paper:#f6f4ee;--panel:#fff;
+    --line:#dcd8cd;--line-strong:#c4bfb0;
+    --green:#1f6f54;--green-tint:#e3efe9;--red:#b3261e;--red-tint:#fbe7e5;
+    --amber:#9a6b00;--amber-tint:#fbf0d6;--blue:#26506b;--blue-tint:#e5eef3;
+    --grey-tint:#eeece5;--radius:10px;--shadow:0 1px 2px rgba(18,36,46,.06),0 4px 14px rgba(18,36,46,.05);
+  }
+  *{box-sizing:border-box} html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--paper);color:var(--ink);font-size:14px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px 18px 80px}
+  header.top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px}
+  header.top h1{font-size:19px;margin:0;letter-spacing:-.01em}
+  .asat{font-size:12.5px;color:var(--ink-soft)}.asat b{color:var(--ink)}
+  .who{font-size:12px;color:var(--ink-soft)}
+  .who button{font-size:12px;padding:2px 8px;margin-left:8px}
+  .tagline{font-size:12.5px;color:var(--ink-soft);margin:2px 0 16px}
+  .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow);cursor:pointer;transition:border-color .12s}
+  .stat:hover{border-color:var(--line-strong)}.stat.active{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+  .stat .n{font-size:24px;font-weight:650;line-height:1;letter-spacing:-.02em}
+  .stat .l{font-size:11.5px;color:var(--ink-soft);margin-top:5px;text-transform:uppercase;letter-spacing:.04em}
+  .stat.overdue .n{color:var(--red)}.stat.week .n{color:var(--amber)}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+  .controls input[type=text],.controls select{font:inherit;padding:7px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);color:var(--ink)}
+  .controls input[type=text]{min-width:200px;flex:1}.spacer{flex:1}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid transparent;padding:7px 12px;font-weight:550}
+  .btn-primary{background:var(--green);color:#fff}.btn-primary:hover{background:#1a5f48}
+  .btn-ghost{background:var(--panel);border-color:var(--line-strong);color:var(--ink)}.btn-ghost:hover{border-color:var(--ink)}
+  .btn-sm{padding:4px 9px;font-size:12.5px;font-weight:500}
+  .tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--line)}
+  .tab{background:none;border:none;border-bottom:2px solid transparent;border-radius:0;padding:8px 12px;color:var(--ink-soft);font-weight:550;margin-bottom:-1px}
+  .tab.active{color:var(--ink);border-bottom-color:var(--green)}
+  .bucket{margin-bottom:22px}
+  .bucket h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:0 0 9px;display:flex;align-items:center;gap:8px}
+  .bucket h2 .dot{width:8px;height:8px;border-radius:50%}
+  .bucket h2 .cnt{font-weight:500;color:var(--ink-soft);background:var(--grey-tint);border-radius:20px;padding:1px 8px;font-size:11.5px;letter-spacing:0}
+  .b-overdue h2 .dot{background:var(--red)}.b-week h2 .dot{background:var(--amber)}
+  .b-month h2 .dot{background:var(--green)}.b-next h2 .dot{background:var(--blue)}
+  .b-later h2 .dot{background:var(--line-strong)}.b-done h2 .dot{background:var(--line-strong)}
+  .task{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-left-width:3px;border-radius:var(--radius);padding:10px 12px;margin-bottom:7px;box-shadow:var(--shadow)}
+  .task.ov{border-left-color:var(--red)}.task.wk{border-left-color:var(--amber)}
+  .task.mo{border-left-color:var(--green)}.task.nx{border-left-color:var(--blue)}
+  .task.la{border-left-color:var(--line-strong)}.task.dn{border-left-color:var(--line-strong);opacity:.62}
+  .task.dn .t-title{text-decoration:line-through}
+  .t-check{appearance:none;width:19px;height:19px;min-width:19px;border:1.5px solid var(--line-strong);border-radius:5px;cursor:pointer;position:relative;background:var(--panel)}
+  .t-check:checked{background:var(--green);border-color:var(--green)}
+  .t-check:checked::after{content:"✓";color:#fff;font-size:13px;position:absolute;top:-1px;left:3px}
+  .t-main{flex:1;min-width:0}.t-title{font-weight:600;font-size:14px}
+  .t-sub{font-size:12.5px;color:var(--ink-soft);margin-top:1px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .badge{font-size:11px;padding:1px 7px;border-radius:20px;font-weight:600;white-space:nowrap}
+  .b-client{background:var(--grey-tint);color:var(--ink-soft)}.b-type{background:var(--blue-tint);color:var(--blue)}
+  .b-freq{background:var(--green-tint);color:var(--green)}
+  .t-due{text-align:right;min-width:118px}.t-date{font-weight:600;font-size:13.5px}
+  .t-rel{font-size:11.5px;margin-top:1px}.rel-ov{color:var(--red)}.rel-wk{color:var(--amber)}.rel-ok{color:var(--ink-soft)}
+  .icon-btn{background:none;border:1px solid transparent;padding:4px 6px;border-radius:6px;color:var(--ink-soft);font-size:12.5px}
+  .icon-btn:hover{background:var(--grey-tint);color:var(--ink)}
+  .empty{text-align:center;color:var(--ink-soft);padding:44px 20px;border:1px dashed var(--line-strong);border-radius:var(--radius);background:var(--panel)}
+  .empty p{margin:6px 0}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);background:var(--grey-tint)}
+  tr:last-child td{border-bottom:none}td .b-client{background:var(--blue-tint);color:var(--blue)}.muted{color:var(--ink-soft)}
+  .overlay{position:fixed;inset:0;background:rgba(18,36,46,.4);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;z-index:50}
+  .overlay.open{display:flex}
+  .modal{background:var(--panel);border-radius:14px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(18,36,46,.28);padding:22px}
+  .modal h3{margin:0 0 4px;font-size:16px}.modal .sub{color:var(--ink-soft);font-size:12.5px;margin:0 0 16px}
+  .field{margin-bottom:13px}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em}
+  .field input,.field select,.field textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--paper);color:var(--ink)}
+  .field textarea{resize:vertical;min-height:52px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+  .link-danger{color:var(--red);background:none;border:none;font-weight:600;margin-right:auto;padding:7px 0}
+  .footer-note{margin-top:26px;font-size:12px;color:var(--ink-soft);border-top:1px solid var(--line);padding-top:12px}
+  /* login / gate */
+  .gate{max-width:380px;margin:8vh auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px;box-shadow:var(--shadow);text-align:center}
+  .gate h1{font-size:18px;margin:0 0 4px}.gate p{color:var(--ink-soft);font-size:13px;margin:0 0 18px}
+  .gate input{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--line-strong);border-radius:8px;margin-bottom:10px}
+  .gate .msg{font-size:12.5px;margin-top:10px}
+  .banner{background:var(--amber-tint);border:1px solid var(--amber);color:var(--amber);border-radius:10px;padding:14px 16px;font-size:13px;margin:8vh auto;max-width:560px}
+  .banner code{background:#fff;padding:1px 5px;border-radius:4px}
+  @media (max-width:720px){.summary{grid-template-columns:repeat(3,1fr)}.t-due{min-width:92px}.row2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<!-- shown until we know auth state -->
+<div id="app-root"></div>
+
+<!-- CLIENT MODAL -->
+<div class="overlay" id="clientOverlay">
+  <div class="modal">
+    <h3 id="clientModalTitle">Add client</h3>
+    <p class="sub">Onboard a new client or update their details.</p>
+    <div class="field"><label>Client name</label><input type="text" id="c_name" placeholder="e.g. Redwood Joinery Ltd"></div>
+    <div class="row2">
+      <div class="field"><label>Client type</label>
+        <select id="c_type"><option>Sole trader</option><option>Limited company</option><option>Charity</option><option>CIC</option><option>Individual</option><option>Partnership</option></select></div>
+      <div class="field"><label>Reference (optional)</label><input type="text" id="c_ref" placeholder="Client code / UTR"></div>
+    </div>
+    <div class="field"><label>Notes (optional)</label><textarea id="c_notes" placeholder="Sector, contact, VAT scheme, year end…"></textarea></div>
+    <div class="modal-actions">
+      <button class="link-danger" id="c_delete" style="display:none">Delete client</button>
+      <button class="btn-ghost" data-close>Cancel</button>
+      <button class="btn-primary" id="c_save">Save client</button>
+    </div>
+  </div>
+</div>
+
+<!-- TASK MODAL -->
+<div class="overlay" id="taskOverlay">
+  <div class="modal">
+    <h3 id="taskModalTitle">Add job</h3>
+    <p class="sub">A job is one deadline for one client. Recurring jobs roll forward automatically when completed.</p>
+    <div class="field"><label>Client</label><select id="t_client"></select></div>
+    <div class="row2">
+      <div class="field"><label>Job type</label><select id="t_type"></select></div>
+      <div class="field"><label>Due date</label><input type="date" id="t_due"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Recurrence</label>
+        <select id="t_freq"><option value="one-off">One-off</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="annual">Annual</option></select></div>
+      <div class="field"><label>Job label (optional)</label><input type="text" id="t_label" placeholder="Overrides the job type name"></div>
+    </div>
+    <div class="field"><label>Notes (optional)</label><textarea id="t_notes" placeholder="Period, workings needed, who is assigned…"></textarea></div>
+    <div class="modal-actions">
+      <button class="link-danger" id="t_delete" style="display:none">Delete job</button>
+      <button class="btn-ghost" data-close>Cancel</button>
+      <button class="btn-primary" id="t_save">Save job</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+/* ============================================================
+   1) CONFIG — paste your two Supabase values here (see README)
+   ============================================================ */
+const SUPABASE_URL      = "https://YOUR-PROJECT-REF.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
+
+/* Job types — edit this list any time to add or remove types.
+   These feed both the "Add job" form and the dashboard filter. */
+const JOB_TYPES = [
+  "Management accounts",
+  "Statutory accounts",
+  "Corporation tax (CT600)",
+  "Self assessment",
+  "Confirmation statement",
+  "VAT submission",
+  "Payroll submission",
+  "Pension submission",
+  "Charity annual return",
+  "CIC annual report (CIC34)",
+  "Other"
+];
+const CLIENT_TYPES = ["Sole trader","Limited company","Charity","CIC","Individual","Partnership"];
+
+/* ============================================================ */
+
+const configured = SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.includes("YOUR-PROJECT");
+const supabase = configured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+let state = { clients: [], tasks: [] };
+let currentView = "dashboard";
+let activeBucket = null;
+let session = null;
+
+/* ---------- date helpers ---------- */
+const uid = () => undefined; // ids come from the database now
+function today(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
+function parseDate(s){ const d=new Date(s+"T00:00:00"); d.setHours(0,0,0,0); return d; }
+function fmt(d){ return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }
+function daysBetween(a,b){ return Math.round((b-a)/86400000); }
+function addFreq(d,f){ const n=new Date(d); if(f==="monthly")n.setMonth(n.getMonth()+1); else if(f==="quarterly")n.setMonth(n.getMonth()+3); else if(f==="annual")n.setFullYear(n.getFullYear()+1); return n; }
+function endOfThisWeek(){ const t=today(),dow=(t.getDay()+6)%7,e=new Date(t); e.setDate(t.getDate()+(6-dow)); return e; }
+function endOfThisMonth(){ const t=today(); return new Date(t.getFullYear(),t.getMonth()+1,0); }
+function endOfNextMonth(){ const t=today(); return new Date(t.getFullYear(),t.getMonth()+2,0); }
+function startOfNextMonth(){ const t=today(); return new Date(t.getFullYear(),t.getMonth()+1,1); }
+function bucketOf(due){ const t=today(); if(due<t)return"overdue"; if(due<=endOfThisWeek())return"week"; if(due<=endOfThisMonth())return"month"; if(due>=startOfNextMonth()&&due<=endOfNextMonth())return"next"; return"later"; }
+function relText(due){ const n=daysBetween(today(),due);
+  if(n<0)return{cls:"rel-ov",txt:(-n)+(n===-1?" day overdue":" days overdue")};
+  if(n===0)return{cls:"rel-wk",txt:"Due today"}; if(n===1)return{cls:"rel-wk",txt:"Due tomorrow"};
+  if(n<=7)return{cls:"rel-wk",txt:"In "+n+" days"}; return{cls:"rel-ok",txt:"In "+n+" days"}; }
+function esc(s){ return (s||"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m])); }
+const iso = d => d.toISOString().slice(0,10);
+
+/* ---------- data layer (Supabase) ---------- */
+async function fetchAll(){
+  const [{data:clients,error:e1},{data:tasks,error:e2}] = await Promise.all([
+    supabase.from("clients").select("*"),
+    supabase.from("tasks").select("*")
+  ]);
+  if(e1||e2){ console.error(e1||e2); alert("Could not load data. Check your login and Supabase policies."); return; }
+  state.clients = clients||[];
+  state.tasks = (tasks||[]).map(t=>({...t, clientId:t.client_id}));
+}
+async function addClient(d){ const {error}=await supabase.from("clients").insert(d); if(error)return alert(error.message); await fetchAll(); render(); }
+async function updateClient(id,d){ const {error}=await supabase.from("clients").update(d).eq("id",id); if(error)return alert(error.message); await fetchAll(); render(); }
+async function removeClient(id){ const {error}=await supabase.from("clients").delete().eq("id",id); if(error)return alert(error.message); await fetchAll(); render(); }
+async function addTask(d){ const {error}=await supabase.from("tasks").insert(d); if(error)return alert(error.message); await fetchAll(); render(); }
+async function updateTask(id,d){ const {error}=await supabase.from("tasks").update(d).eq("id",id); if(error)return alert(error.message); await fetchAll(); render(); }
+async function removeTask(id){ const {error}=await supabase.from("tasks").delete().eq("id",id); if(error)return alert(error.message); await fetchAll(); render(); }
+
+/* ---------- shell ---------- */
+function appShell(){
+  return `<div class="wrap">
+    <header class="top">
+      <h1>Practice Deadline Tracker</h1>
+      <div style="text-align:right">
+        <div class="asat">As at <b id="today"></b></div>
+        <div class="who">${esc(session?.user?.email||"")}<button class="btn-ghost btn-sm" id="signOut">Sign out</button></div>
+      </div>
+    </header>
+    <p class="tagline">Shared across your team. Priority is worked out from today's date — overdue and imminent jobs surface first.</p>
+    <div class="summary" id="summary"></div>
+    <div class="tabs">
+      <button class="tab active" data-view="dashboard">Deadlines</button>
+      <button class="tab" data-view="clients">Clients</button>
+    </div>
+    <div id="view-dashboard">
+      <div class="controls">
+        <input type="text" id="search" placeholder="Search client or job…">
+        <select id="filterType"><option value="">All job types</option>${JOB_TYPES.map(j=>`<option>${esc(j)}</option>`).join("")}</select>
+        <select id="filterClientType"><option value="">All client types</option>${CLIENT_TYPES.map(c=>`<option>${esc(c)}</option>`).join("")}</select>
+        <label style="font-size:12.5px;color:var(--ink-soft);display:flex;align-items:center;gap:5px"><input type="checkbox" id="showDone"> Show completed</label>
+        <span class="spacer"></span>
+        <button class="btn-primary" id="addTaskBtn">+ Add job</button>
+      </div>
+      <div id="buckets"></div>
+    </div>
+    <div id="view-clients" style="display:none">
+      <div class="controls"><input type="text" id="clientSearch" placeholder="Search clients…"><span class="spacer"></span><button class="btn-primary" id="addClientBtn">+ Add client</button></div>
+      <div id="clientTable"></div>
+    </div>
+    <div class="footer-note">Shared team database (Supabase). Changes made by anyone signed in appear for everyone.</div>
+  </div>`;
+}
+
+function loginGate(msg){
+  return `<div class="gate">
+    <h1>Practice Deadline Tracker</h1>
+    <p>Sign in with your work email. You'll get a one-time link — no password to remember.</p>
+    <input type="email" id="loginEmail" placeholder="you@severnaccounting.co.uk">
+    <button class="btn-primary" id="loginBtn" style="width:100%">Email me a sign-in link</button>
+    <div class="msg" id="loginMsg">${msg||""}</div>
+  </div>`;
+}
+
+/* ---------- render ---------- */
+function fillTypeSelects(){
+  const el=document.getElementById("t_type");
+  if(el) el.innerHTML = JOB_TYPES.map(j=>`<option>${esc(j)}</option>`).join("");
+  const ct=document.getElementById("c_type");
+  if(ct) ct.innerHTML = CLIENT_TYPES.map(c=>`<option>${esc(c)}</option>`).join("");
+}
+function clientById(id){ return state.clients.find(c=>c.id===id); }
+
+function renderSummary(){
+  const open=state.tasks.filter(t=>!t.done);
+  const c={overdue:0,week:0,month:0,next:0,later:0};
+  open.forEach(t=>c[bucketOf(parseDate(t.due))]++);
+  const cells=[["overdue",c.overdue,"Overdue","overdue"],["week",c.week,"Due this week","week"],
+    ["month",c.month,"Rest of this month",""],["next",c.next,"Due next month",""],["later",c.later,"Later",""]];
+  document.getElementById("summary").innerHTML=cells.map(([k,n,l,cls])=>
+    `<div class="stat ${cls} ${activeBucket===k?'active':''}" data-bucket="${k}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
+  document.querySelectorAll(".stat").forEach(el=>el.onclick=()=>{activeBucket=activeBucket===el.dataset.bucket?null:el.dataset.bucket;render();});
+}
+
+function taskRow(t,tcls){
+  const r=relText(t._due);
+  const freq=t.freq&&t.freq!=="one-off"?`<span class="badge b-freq">${t.freq}</span>`:"";
+  return `<div class="task ${tcls}">
+    <input type="checkbox" class="t-check" data-id="${t.id}" ${t.done?"checked":""}>
+    <div class="t-main"><div class="t-title">${esc(t.label||t.type)}</div>
+      <div class="t-sub"><span class="badge b-client">${esc(t._client.name)}</span><span class="muted">${esc(t._client.type)}</span>
+      ${t.label?`<span class="badge b-type">${esc(t.type)}</span>`:""}${freq}${t.notes?`<span class="muted">· ${esc(t.notes)}</span>`:""}</div></div>
+    <div class="t-due"><div class="t-date">${fmt(t._due)}</div>${t.done?`<div class="t-rel rel-ok">Completed</div>`:`<div class="t-rel ${r.cls}">${r.txt}</div>`}</div>
+    <div class="t-actions"><button class="icon-btn" data-edit-task="${t.id}">Edit</button></div></div>`;
+}
+
+function renderDashboard(){
+  const q=document.getElementById("search").value.trim().toLowerCase();
+  const fType=document.getElementById("filterType").value;
+  const fClientType=document.getElementById("filterClientType").value;
+  const showDone=document.getElementById("showDone").checked;
+  let list=state.tasks.map(t=>{const c=clientById(t.clientId)||{name:"(unknown)",type:"—"};return{...t,_client:c,_due:parseDate(t.due),_b:bucketOf(parseDate(t.due))};});
+  list=list.filter(t=>{
+    if(!showDone&&t.done)return false;
+    if(fType&&t.type!==fType)return false;
+    if(fClientType&&t._client.type!==fClientType)return false;
+    if(activeBucket&&!t.done&&t._b!==activeBucket)return false;
+    if(q&&!((t._client.name+" "+(t.label||t.type)+" "+(t.notes||"")).toLowerCase().includes(q)))return false;
+    return true;
+  });
+  list.sort((a,b)=>a._due-b._due);
+  const defs=[["overdue","b-overdue","Overdue","ov"],["week","b-week","Due this week","wk"],["month","b-month","Rest of this month","mo"],["next","b-next","Due next month","nx"],["later","b-later","Later","la"]];
+  const open=list.filter(t=>!t.done),done=list.filter(t=>t.done); let html="";
+  if(open.length===0&&done.length===0){
+    html=`<div class="empty"><p><b>Nothing here yet.</b></p><p>Add a client, then add their jobs and deadlines.</p></div>`;
+  }else{
+    defs.forEach(([key,cls,label,tcls])=>{const items=open.filter(t=>t._b===key);if(!items.length)return;
+      html+=`<div class="bucket ${cls}"><h2><span class="dot"></span>${label}<span class="cnt">${items.length}</span></h2>`+items.map(t=>taskRow(t,tcls)).join("")+`</div>`;});
+    if(open.length===0)html+=`<div class="empty"><p><b>No open jobs match your filters.</b></p></div>`;
+    if(showDone&&done.length)html+=`<div class="bucket b-done"><h2><span class="dot"></span>Completed<span class="cnt">${done.length}</span></h2>`+done.map(t=>taskRow(t,"dn")).join("")+`</div>`;
+  }
+  document.getElementById("buckets").innerHTML=html;
+  document.querySelectorAll(".t-check").forEach(el=>el.onchange=()=>toggleDone(el.dataset.id));
+  document.querySelectorAll("[data-edit-task]").forEach(el=>el.onclick=()=>openTask(el.dataset.editTask));
+}
+
+function renderClients(){
+  const q=document.getElementById("clientSearch").value.trim().toLowerCase();
+  let cs=[...state.clients].sort((a,b)=>a.name.localeCompare(b.name));
+  if(q)cs=cs.filter(c=>(c.name+" "+(c.ref||"")+" "+(c.notes||"")).toLowerCase().includes(q));
+  if(state.clients.length===0){document.getElementById("clientTable").innerHTML=`<div class="empty"><p><b>No clients yet.</b></p><p>Add your first client to start tracking deadlines.</p></div>`;return;}
+  const rows=cs.map(c=>{const open=state.tasks.filter(t=>t.clientId===c.id&&!t.done).length;
+    const next=state.tasks.filter(t=>t.clientId===c.id&&!t.done).map(t=>parseDate(t.due)).sort((a,b)=>a-b)[0];
+    return `<tr><td><b>${esc(c.name)}</b>${c.ref?` <span class="muted">· ${esc(c.ref)}</span>`:""}</td>
+      <td><span class="badge b-client">${esc(c.type)}</span></td><td>${open}</td>
+      <td>${next?fmt(next):'<span class="muted">—</span>'}</td>
+      <td style="text-align:right"><button class="btn-ghost btn-sm" data-edit-client="${c.id}">Edit</button> <button class="btn-ghost btn-sm" data-add-for="${c.id}">+ Job</button></td></tr>`;}).join("");
+  document.getElementById("clientTable").innerHTML=`<table><thead><tr><th>Client</th><th>Type</th><th>Open jobs</th><th>Next deadline</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.querySelectorAll("[data-edit-client]").forEach(el=>el.onclick=()=>openClient(el.dataset.editClient));
+  document.querySelectorAll("[data-add-for]").forEach(el=>el.onclick=()=>openTask(null,el.dataset.addFor));
+}
+
+function render(){
+  const t=document.getElementById("today"); if(t)t.textContent=fmt(today());
+  renderSummary();
+  if(currentView==="dashboard")renderDashboard(); else renderClients();
+}
+
+/* ---------- actions ---------- */
+async function toggleDone(id){
+  const t=state.tasks.find(x=>x.id===id); if(!t)return;
+  if(!t.done&&t.freq&&t.freq!=="one-off"){
+    await updateTask(id,{done:true,completed_on:iso(today())});
+    const next=addFreq(parseDate(t.due),t.freq);
+    await addTask({client_id:t.clientId,type:t.type,label:t.label||null,due:iso(next),freq:t.freq,notes:t.notes||null,done:false});
+  }else{
+    await updateTask(id,{done:!t.done,completed_on:!t.done?iso(today()):null});
+  }
+}
+
+let editingClient=null;
+function openClient(id){
+  editingClient=id; fillTypeSelects();
+  const c=id?clientById(id):null;
+  document.getElementById("clientModalTitle").textContent=c?"Edit client":"Add client";
+  document.getElementById("c_name").value=c?c.name:"";
+  document.getElementById("c_type").value=c?c.type:CLIENT_TYPES[0];
+  document.getElementById("c_ref").value=c?(c.ref||""):"";
+  document.getElementById("c_notes").value=c?(c.notes||""):"";
+  document.getElementById("c_delete").style.display=c?"block":"none";
+  document.getElementById("clientOverlay").classList.add("open");
+}
+async function saveClient(){
+  const name=document.getElementById("c_name").value.trim(); if(!name)return alert("Please enter a client name.");
+  const d={name,type:document.getElementById("c_type").value,ref:document.getElementById("c_ref").value.trim()||null,notes:document.getElementById("c_notes").value.trim()||null};
+  closeModals();
+  if(editingClient)await updateClient(editingClient,d); else await addClient(d);
+}
+async function deleteClient(){
+  if(!editingClient)return;
+  const n=state.tasks.filter(t=>t.clientId===editingClient).length;
+  if(!confirm(`Delete this client${n?` and their ${n} job(s)`:""}? This cannot be undone.`))return;
+  closeModals(); await removeClient(editingClient);
+}
+
+let editingTask=null;
+function fillClientSelect(sel){
+  const el=document.getElementById("t_client");
+  if(state.clients.length===0){el.innerHTML=`<option value="">— add a client first —</option>`;return;}
+  el.innerHTML=state.clients.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<option value="${c.id}">${esc(c.name)} (${esc(c.type)})</option>`).join("");
+  if(sel)el.value=sel;
+}
+function openTask(id,presetClient){
+  if(state.clients.length===0&&!id){alert("Add a client first.");openClient(null);return;}
+  editingTask=id; fillTypeSelects();
+  const t=id?state.tasks.find(x=>x.id===id):null;
+  document.getElementById("taskModalTitle").textContent=t?"Edit job":"Add job";
+  fillClientSelect(t?t.clientId:presetClient);
+  document.getElementById("t_type").value=t?t.type:JOB_TYPES[0];
+  document.getElementById("t_due").value=t?t.due:"";
+  document.getElementById("t_freq").value=t?(t.freq||"one-off"):"one-off";
+  document.getElementById("t_label").value=t?(t.label||""):"";
+  document.getElementById("t_notes").value=t?(t.notes||""):"";
+  document.getElementById("t_delete").style.display=t?"block":"none";
+  document.getElementById("taskOverlay").classList.add("open");
+}
+async function saveTask(){
+  const clientId=document.getElementById("t_client").value;
+  const due=document.getElementById("t_due").value;
+  if(!clientId)return alert("Please choose a client.");
+  if(!due)return alert("Please set a due date.");
+  const d={client_id:clientId,type:document.getElementById("t_type").value,due,freq:document.getElementById("t_freq").value,
+    label:document.getElementById("t_label").value.trim()||null,notes:document.getElementById("t_notes").value.trim()||null};
+  closeModals();
+  if(editingTask)await updateTask(editingTask,d); else await addTask({...d,done:false});
+}
+async function deleteTask(){
+  if(!editingTask)return; if(!confirm("Delete this job? This cannot be undone."))return;
+  closeModals(); await removeTask(editingTask);
+}
+function closeModals(){ document.querySelectorAll(".overlay").forEach(o=>o.classList.remove("open")); }
+
+/* ---------- wiring after shell mounts ---------- */
+function mountApp(){
+  document.getElementById("app-root").innerHTML=appShell();
+  document.querySelectorAll(".tab").forEach(tab=>tab.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active")); tab.classList.add("active");
+    currentView=tab.dataset.view;
+    document.getElementById("view-dashboard").style.display=currentView==="dashboard"?"block":"none";
+    document.getElementById("view-clients").style.display=currentView==="clients"?"block":"none"; render();
+  });
+  ["search","filterType","filterClientType"].forEach(id=>document.getElementById(id).oninput=render);
+  document.getElementById("showDone").onchange=render;
+  document.getElementById("clientSearch").oninput=render;
+  document.getElementById("addTaskBtn").onclick=()=>openTask(null);
+  document.getElementById("addClientBtn").onclick=()=>openClient(null);
+  document.getElementById("c_save").onclick=saveClient;
+  document.getElementById("c_delete").onclick=deleteClient;
+  document.getElementById("t_save").onclick=saveTask;
+  document.getElementById("t_delete").onclick=deleteTask;
+  document.getElementById("signOut").onclick=async()=>{ await supabase.auth.signOut(); location.reload(); };
+  document.querySelectorAll("[data-close]").forEach(b=>b.onclick=closeModals);
+  document.querySelectorAll(".overlay").forEach(o=>o.onclick=e=>{if(e.target===o)closeModals();});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModals();});
+  render();
+
+  // live updates across the team
+  supabase.channel("practice")
+    .on("postgres_changes",{event:"*",schema:"public",table:"clients"},async()=>{await fetchAll();render();})
+    .on("postgres_changes",{event:"*",schema:"public",table:"tasks"},async()=>{await fetchAll();render();})
+    .subscribe();
+}
+
+function mountLogin(msg){
+  document.getElementById("app-root").innerHTML=loginGate(msg);
+  document.getElementById("loginBtn").onclick=async()=>{
+    const email=document.getElementById("loginEmail").value.trim();
+    if(!email)return;
+    const {error}=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.href}});
+    document.getElementById("loginMsg").textContent=error?error.message:"Check your inbox for the sign-in link.";
+  };
+}
+
+/* ---------- boot ---------- */
+(async()=>{
+  if(!configured){
+    document.getElementById("app-root").innerHTML=
+      `<div class="banner"><b>Setup needed.</b> Open <code>index.html</code> and paste your Supabase project URL and anon key into the CONFIG section near the top of the script, then reload. Full steps are in <code>README.md</code>.</div>`;
+    return;
+  }
+  const {data:{session:s}}=await supabase.auth.getSession();
+  session=s;
+  supabase.auth.onAuthStateChange((_e,newSession)=>{
+    const wasIn=!!session; session=newSession;
+    if(!!session!==wasIn) location.reload();
+  });
+  if(!session){ mountLogin(); return; }
+  await fetchAll(); mountApp();
+})();
+</script>
+</body>
+</html>
