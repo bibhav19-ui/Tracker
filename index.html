@@ -63,6 +63,10 @@
   .t-rel{font-size:11.5px;margin-top:1px}.rel-ov{color:var(--red)}.rel-wk{color:var(--amber)}.rel-ok{color:var(--ink-soft)}
   .icon-btn{background:none;border:1px solid transparent;padding:4px 6px;border-radius:6px;color:var(--ink-soft);font-size:12.5px}
   .icon-btn:hover{background:var(--grey-tint);color:var(--ink)}
+  .btn-done{background:var(--green);color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12.5px;font-weight:600}
+  .btn-done:hover{background:#1a5f48}
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(18,36,46,.3);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:80}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .empty{text-align:center;color:var(--ink-soft);padding:44px 20px;border:1px dashed var(--line-strong);border-radius:var(--radius);background:var(--panel)}
   .empty p{margin:6px 0}
   /* per-client boxes */
@@ -195,7 +199,7 @@ function today(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
 function parseDate(s){ const d=new Date(s+"T00:00:00"); d.setHours(0,0,0,0); return d; }
 function fmt(d){ return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }
 function daysBetween(a,b){ return Math.round((b-a)/86400000); }
-function addFreq(d,f){ const n=new Date(d); if(f==="monthly")n.setMonth(n.getMonth()+1); else if(f==="quarterly")n.setMonth(n.getMonth()+3); else if(f==="annual")n.setFullYear(n.getFullYear()+1); return n; }
+function addFreq(d,f,dir=1){ const n=new Date(d); if(f==="monthly")n.setMonth(n.getMonth()+1*dir); else if(f==="quarterly")n.setMonth(n.getMonth()+3*dir); else if(f==="annual")n.setFullYear(n.getFullYear()+1*dir); return n; }
 function endOfThisWeek(){ const t=today(),dow=(t.getDay()+6)%7,e=new Date(t); e.setDate(t.getDate()+(6-dow)); return e; }
 function endOfThisMonth(){ const t=today(); return new Date(t.getFullYear(),t.getMonth()+1,0); }
 function endOfNextMonth(){ const t=today(); return new Date(t.getFullYear(),t.getMonth()+2,0); }
@@ -306,12 +310,11 @@ function taskRow(t,tcls){
   const r=relText(t._due);
   const freq=t.freq&&t.freq!=="one-off"?`<span class="badge b-freq">${t.freq}</span>`:"";
   return `<div class="task ${tcls}">
-    <input type="checkbox" class="t-check" data-id="${t.id}" ${t.done?"checked":""}>
     <div class="t-main"><div class="t-title">${esc(t.label||t.type)}</div>
       <div class="t-sub"><span class="badge b-client">${esc(t._client.name)}</span><span class="muted">${esc(t._client.type)}</span>
       ${t.label?`<span class="badge b-type">${esc(t.type)}</span>`:""}${freq}${t.notes?`<span class="muted">· ${esc(t.notes)}</span>`:""}</div></div>
     <div class="t-due"><div class="t-date">${fmt(t._due)}</div>${t.done?`<div class="t-rel rel-ok">Completed</div>`:`<div class="t-rel ${r.cls}">${r.txt}</div>`}</div>
-    <div class="t-actions"><button class="icon-btn" data-edit-task="${t.id}">Edit</button></div></div>`;
+    <div class="t-actions">${taskActions(t)}</div></div>`;
 }
 
 function renderDashboard(){
@@ -340,8 +343,7 @@ function renderDashboard(){
     if(showDone&&done.length)html+=`<div class="bucket b-done"><h2><span class="dot"></span>Completed<span class="cnt">${done.length}</span></h2>`+done.map(t=>taskRow(t,"dn")).join("")+`</div>`;
   }
   document.getElementById("buckets").innerHTML=html;
-  document.querySelectorAll(".t-check").forEach(el=>el.onchange=()=>toggleDone(el.dataset.id));
-  document.querySelectorAll("[data-edit-task]").forEach(el=>el.onclick=()=>openTask(el.dataset.editTask));
+  wireTaskActions(document);
 }
 
 function renderClients(){
@@ -399,11 +401,10 @@ function renderByClient(){
     const jobsHtml = jobs.length
       ? jobs.map(t=>{const r=relText(t._due);const freq=t.freq&&t.freq!=="one-off"?`<span class="badge b-freq">${t.freq}</span>`:"";
           return `<div class="task ${t.done?'dn':tcls[t._b]}">
-            <input type="checkbox" class="t-check" data-id="${t.id}" ${t.done?"checked":""}>
             <div class="t-main"><div class="t-title">${esc(t.label||t.type)}</div>
               <div class="t-sub">${t.label?`<span class="badge b-type">${esc(t.type)}</span>`:""}${freq}${t.notes?`<span class="muted">${esc(t.notes)}</span>`:""}</div></div>
             <div class="t-due"><div class="t-date">${fmt(t._due)}</div>${t.done?`<div class="t-rel rel-ok">Completed</div>`:`<div class="t-rel ${r.cls}">${r.txt}</div>`}</div>
-            <div class="t-actions"><button class="icon-btn" data-edit-task="${t.id}">Edit</button></div></div>`;}).join("")
+            <div class="t-actions">${taskActions(t)}</div></div>`;}).join("")
       : `<div class="cc-none">No open jobs.</div>`;
     return `<div class="cc ${overdue?'cc-alert':''}">
       <div class="cc-head">
@@ -418,8 +419,7 @@ function renderByClient(){
     </div>`;
   }).join("");
 
-  wrap.querySelectorAll(".t-check").forEach(el=>el.onchange=()=>toggleDone(el.dataset.id));
-  wrap.querySelectorAll("[data-edit-task]").forEach(el=>el.onclick=()=>openTask(el.dataset.editTask));
+  wireTaskActions(wrap);
   wrap.querySelectorAll("[data-add-for]").forEach(el=>el.onclick=()=>openTask(null,el.dataset.addFor));
   wrap.querySelectorAll("[data-edit-client]").forEach(el=>el.onclick=()=>openClient(el.dataset.editClient));
 }
@@ -433,15 +433,38 @@ function render(){
 }
 
 /* ---------- actions ---------- */
-async function toggleDone(id){
+function taskActions(t){
+  if(t.done) return `<button class="icon-btn" data-undo="${t.id}">Undo</button><button class="icon-btn" data-edit-task="${t.id}">Edit</button>`;
+  const rec=t.freq&&t.freq!=="one-off";
+  const title=rec?`Mark done — rolls forward to ${fmt(addFreq(parseDate(t.due),t.freq))}`:"Mark done";
+  return `<button class="btn-done" data-done="${t.id}" title="${title}">Done</button><button class="icon-btn" data-edit-task="${t.id}">Edit</button>`;
+}
+function wireTaskActions(scope){
+  scope.querySelectorAll("[data-done]").forEach(el=>el.onclick=()=>markDone(el.dataset.done));
+  scope.querySelectorAll("[data-undo]").forEach(el=>el.onclick=()=>undoTask(el.dataset.undo));
+  scope.querySelectorAll("[data-edit-task]").forEach(el=>el.onclick=()=>openTask(el.dataset.editTask));
+}
+function toast(msg){
+  let el=document.getElementById("toast");
+  if(!el){el=document.createElement("div");el.id="toast";document.body.appendChild(el);}
+  el.textContent=msg; el.classList.add("show"); clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove("show"),2800);
+}
+async function markDone(id){
   const t=state.tasks.find(x=>x.id===id); if(!t)return;
-  if(!t.done&&t.freq&&t.freq!=="one-off"){
-    await updateTask(id,{done:true,completed_on:iso(today())});
+  if(t.freq&&t.freq!=="one-off"){
     const next=addFreq(parseDate(t.due),t.freq);
-    await addTask({client_id:t.clientId,type:t.type,label:t.label||null,due:iso(next),freq:t.freq,notes:t.notes||null,done:false});
+    await updateTask(id,{due:iso(next)});
+    toast(`${t.label||t.type} rolled forward to ${fmt(next)}`);
   }else{
-    await updateTask(id,{done:!t.done,completed_on:!t.done?iso(today()):null});
+    await updateTask(id,{done:true,completed_on:iso(today())});
+    toast(`${t.label||t.type} marked done`);
   }
+}
+async function undoTask(id){
+  const t=state.tasks.find(x=>x.id===id); if(!t)return;
+  if(t.done){ await updateTask(id,{done:false,completed_on:null}); return; }
+  if(t.freq&&t.freq!=="one-off"){ const prev=addFreq(parseDate(t.due),t.freq,-1); await updateTask(id,{due:iso(prev)}); toast(`Rolled back to ${fmt(prev)}`); }
 }
 
 let editingClient=null;
