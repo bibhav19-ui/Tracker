@@ -65,6 +65,19 @@
   .icon-btn:hover{background:var(--grey-tint);color:var(--ink)}
   .empty{text-align:center;color:var(--ink-soft);padding:44px 20px;border:1px dashed var(--line-strong);border-radius:var(--radius);background:var(--panel)}
   .empty p{margin:6px 0}
+  /* per-client boxes */
+  .cc{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
+  .cc-alert{border-color:var(--red);box-shadow:0 0 0 1px var(--red-tint)}
+  .cc-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;background:var(--grey-tint);border-bottom:1px solid var(--line)}
+  .cc-id{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .cc-name{font-size:15px;font-weight:650;letter-spacing:-.01em}
+  .cc-ov{background:var(--red-tint);color:var(--red)}
+  .cc-meta{font-size:12.5px;color:var(--ink-soft);display:flex;align-items:center;gap:6px}
+  .cc-jobs{padding:10px 12px}
+  .cc-jobs .task{box-shadow:none;margin-bottom:6px}
+  .cc-jobs .task:last-child{margin-bottom:0}
+  .cc-none{color:var(--ink-soft);font-size:12.5px;padding:4px 2px}
+  .count-cap{font-size:12.5px;color:var(--ink-soft);margin:0 0 10px;font-weight:600}
   table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
   th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle}
   th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);background:var(--grey-tint)}
@@ -101,6 +114,7 @@
     <h3 id="clientModalTitle">Add client</h3>
     <p class="sub">Onboard a new client or update their details.</p>
     <div class="field"><label>Client name</label><input type="text" id="c_name" placeholder="e.g. Redwood Joinery Ltd"></div>
+    <div class="field"><label>Director / contact name</label><input type="text" id="c_director" placeholder="e.g. Jonathon Morris"></div>
     <div class="row2">
       <div class="field"><label>Client type</label>
         <select id="c_type"><option>Sole trader</option><option>Limited company</option><option>Charity</option><option>CIC</option><option>Individual</option><option>Partnership</option></select></div>
@@ -225,6 +239,7 @@ function appShell(){
     <div class="summary" id="summary"></div>
     <div class="tabs">
       <button class="tab active" data-view="dashboard">Deadlines</button>
+      <button class="tab" data-view="byclient">By client</button>
       <button class="tab" data-view="clients">Clients</button>
     </div>
     <div id="view-dashboard">
@@ -237,6 +252,17 @@ function appShell(){
         <button class="btn-primary" id="addTaskBtn">+ Add job</button>
       </div>
       <div id="buckets"></div>
+    </div>
+    <div id="view-byclient" style="display:none">
+      <div class="controls">
+        <input type="text" id="bcSearch" placeholder="Search clients…">
+        <select id="bcClientType"><option value="">All client types</option>${CLIENT_TYPES.map(c=>`<option>${esc(c)}</option>`).join("")}</select>
+        <select id="bcSort"><option value="urgent">Most urgent first</option><option value="name">A–Z by name</option></select>
+        <label style="font-size:12.5px;color:var(--ink-soft);display:flex;align-items:center;gap:5px"><input type="checkbox" id="bcShowDone"> Show completed</label>
+        <span class="spacer"></span>
+        <button class="btn-primary" id="bcAddClientBtn">+ Add client</button>
+      </div>
+      <div id="clientCards"></div>
     </div>
     <div id="view-clients" style="display:none">
       <div class="controls"><input type="text" id="clientSearch" placeholder="Search clients…"><span class="spacer"></span><button class="btn-primary" id="addClientBtn">+ Add client</button></div>
@@ -321,23 +347,89 @@ function renderDashboard(){
 function renderClients(){
   const q=document.getElementById("clientSearch").value.trim().toLowerCase();
   let cs=[...state.clients].sort((a,b)=>a.name.localeCompare(b.name));
-  if(q)cs=cs.filter(c=>(c.name+" "+(c.ref||"")+" "+(c.notes||"")).toLowerCase().includes(q));
+  if(q)cs=cs.filter(c=>(c.name+" "+(c.director||"")+" "+(c.ref||"")+" "+(c.notes||"")).toLowerCase().includes(q));
   if(state.clients.length===0){document.getElementById("clientTable").innerHTML=`<div class="empty"><p><b>No clients yet.</b></p><p>Add your first client to start tracking deadlines.</p></div>`;return;}
   const rows=cs.map(c=>{const open=state.tasks.filter(t=>t.clientId===c.id&&!t.done).length;
     const next=state.tasks.filter(t=>t.clientId===c.id&&!t.done).map(t=>parseDate(t.due)).sort((a,b)=>a-b)[0];
     return `<tr><td><b>${esc(c.name)}</b>${c.ref?` <span class="muted">· ${esc(c.ref)}</span>`:""}</td>
+      <td>${c.director?esc(c.director):'<span class="muted">—</span>'}</td>
       <td><span class="badge b-client">${esc(c.type)}</span></td><td>${open}</td>
       <td>${next?fmt(next):'<span class="muted">—</span>'}</td>
       <td style="text-align:right"><button class="btn-ghost btn-sm" data-edit-client="${c.id}">Edit</button> <button class="btn-ghost btn-sm" data-add-for="${c.id}">+ Job</button></td></tr>`;}).join("");
-  document.getElementById("clientTable").innerHTML=`<table><thead><tr><th>Client</th><th>Type</th><th>Open jobs</th><th>Next deadline</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  const caption=q?`${cs.length} of ${state.clients.length} clients`:`${state.clients.length} clients`;
+  document.getElementById("clientTable").innerHTML=`<div class="count-cap">${caption}</div><table><thead><tr><th>Client</th><th>Director / contact</th><th>Type</th><th>Open jobs</th><th>Next deadline</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
   document.querySelectorAll("[data-edit-client]").forEach(el=>el.onclick=()=>openClient(el.dataset.editClient));
   document.querySelectorAll("[data-add-for]").forEach(el=>el.onclick=()=>openTask(null,el.dataset.addFor));
+}
+
+function renderByClient(){
+  const q=document.getElementById("bcSearch").value.trim().toLowerCase();
+  const fClientType=document.getElementById("bcClientType").value;
+  const sortBy=document.getElementById("bcSort").value;
+  const showDone=document.getElementById("bcShowDone").checked;
+  const wrap=document.getElementById("clientCards");
+  if(state.clients.length===0){wrap.innerHTML=`<div class="empty"><p><b>No clients yet.</b></p><p>Add your first client to see their jobs here.</p></div>`;return;}
+
+  let clients=state.clients.filter(c=>{
+    if(fClientType&&c.type!==fClientType)return false;
+    if(q&&!(c.name+" "+(c.director||"")+" "+(c.ref||"")+" "+(c.notes||"")).toLowerCase().includes(q))return false;
+    return true;
+  });
+
+  // attach each client's jobs
+  const withJobs=clients.map(c=>{
+    let jobs=state.tasks.filter(t=>t.clientId===c.id).map(t=>({...t,_due:parseDate(t.due),_b:bucketOf(parseDate(t.due))}));
+    if(!showDone)jobs=jobs.filter(t=>!t.done);
+    jobs.sort((a,b)=>(a.done-b.done)||(a._due-b._due));
+    const openJobs=jobs.filter(t=>!t.done);
+    const next=openJobs.length?openJobs[0]._due:null;
+    const overdue=openJobs.filter(t=>t._b==="overdue").length;
+    return {c,jobs,openCount:openJobs.length,next,overdue};
+  });
+
+  if(sortBy==="name")withJobs.sort((a,b)=>a.c.name.localeCompare(b.c.name));
+  else withJobs.sort((a,b)=>{ // urgent: overdue clients, then soonest next deadline, then no-deadline last
+    if(!a.next&&!b.next)return a.c.name.localeCompare(b.c.name);
+    if(!a.next)return 1; if(!b.next)return -1; return a.next-b.next;
+  });
+
+  const tcls={overdue:"ov",week:"wk",month:"mo",next:"nx",later:"la"};
+  const cap=q||fClientType?`${withJobs.length} of ${state.clients.length} clients`:`${state.clients.length} clients`;
+  wrap.innerHTML=`<div class="count-cap">${cap}</div>`+withJobs.map(({c,jobs,openCount,next,overdue})=>{
+    const jobsHtml = jobs.length
+      ? jobs.map(t=>{const r=relText(t._due);const freq=t.freq&&t.freq!=="one-off"?`<span class="badge b-freq">${t.freq}</span>`:"";
+          return `<div class="task ${t.done?'dn':tcls[t._b]}">
+            <input type="checkbox" class="t-check" data-id="${t.id}" ${t.done?"checked":""}>
+            <div class="t-main"><div class="t-title">${esc(t.label||t.type)}</div>
+              <div class="t-sub">${t.label?`<span class="badge b-type">${esc(t.type)}</span>`:""}${freq}${t.notes?`<span class="muted">${esc(t.notes)}</span>`:""}</div></div>
+            <div class="t-due"><div class="t-date">${fmt(t._due)}</div>${t.done?`<div class="t-rel rel-ok">Completed</div>`:`<div class="t-rel ${r.cls}">${r.txt}</div>`}</div>
+            <div class="t-actions"><button class="icon-btn" data-edit-task="${t.id}">Edit</button></div></div>`;}).join("")
+      : `<div class="cc-none">No open jobs.</div>`;
+    return `<div class="cc ${overdue?'cc-alert':''}">
+      <div class="cc-head">
+        <div class="cc-id"><span class="cc-name">${esc(c.name)}</span><span class="badge b-client">${esc(c.type)}</span>
+          ${c.director?`<span class="muted">· ${esc(c.director)}</span>`:""}
+          ${overdue?`<span class="badge cc-ov">${overdue} overdue</span>`:""}</div>
+        <div class="cc-meta">${openCount} open · next ${next?fmt(next):"—"}
+          <button class="btn-ghost btn-sm" data-add-for="${c.id}">+ Job</button>
+          <button class="btn-ghost btn-sm" data-edit-client="${c.id}">Edit</button></div>
+      </div>
+      <div class="cc-jobs">${jobsHtml}</div>
+    </div>`;
+  }).join("");
+
+  wrap.querySelectorAll(".t-check").forEach(el=>el.onchange=()=>toggleDone(el.dataset.id));
+  wrap.querySelectorAll("[data-edit-task]").forEach(el=>el.onclick=()=>openTask(el.dataset.editTask));
+  wrap.querySelectorAll("[data-add-for]").forEach(el=>el.onclick=()=>openTask(null,el.dataset.addFor));
+  wrap.querySelectorAll("[data-edit-client]").forEach(el=>el.onclick=()=>openClient(el.dataset.editClient));
 }
 
 function render(){
   const t=document.getElementById("today"); if(t)t.textContent=fmt(today());
   renderSummary();
-  if(currentView==="dashboard")renderDashboard(); else renderClients();
+  if(currentView==="dashboard")renderDashboard();
+  else if(currentView==="byclient")renderByClient();
+  else renderClients();
 }
 
 /* ---------- actions ---------- */
@@ -358,6 +450,7 @@ function openClient(id){
   const c=id?clientById(id):null;
   document.getElementById("clientModalTitle").textContent=c?"Edit client":"Add client";
   document.getElementById("c_name").value=c?c.name:"";
+  document.getElementById("c_director").value=c?(c.director||""):"";
   document.getElementById("c_type").value=c?c.type:CLIENT_TYPES[0];
   document.getElementById("c_ref").value=c?(c.ref||""):"";
   document.getElementById("c_notes").value=c?(c.notes||""):"";
@@ -366,7 +459,7 @@ function openClient(id){
 }
 async function saveClient(){
   const name=document.getElementById("c_name").value.trim(); if(!name)return alert("Please enter a client name.");
-  const d={name,type:document.getElementById("c_type").value,ref:document.getElementById("c_ref").value.trim()||null,notes:document.getElementById("c_notes").value.trim()||null};
+  const d={name,type:document.getElementById("c_type").value,director:document.getElementById("c_director").value.trim()||null,ref:document.getElementById("c_ref").value.trim()||null,notes:document.getElementById("c_notes").value.trim()||null};
   closeModals();
   if(editingClient)await updateClient(editingClient,d); else await addClient(d);
 }
@@ -421,11 +514,15 @@ function mountApp(){
     document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active")); tab.classList.add("active");
     currentView=tab.dataset.view;
     document.getElementById("view-dashboard").style.display=currentView==="dashboard"?"block":"none";
+    document.getElementById("view-byclient").style.display=currentView==="byclient"?"block":"none";
     document.getElementById("view-clients").style.display=currentView==="clients"?"block":"none"; render();
   });
   ["search","filterType","filterClientType"].forEach(id=>document.getElementById(id).oninput=render);
   document.getElementById("showDone").onchange=render;
   document.getElementById("clientSearch").oninput=render;
+  ["bcSearch","bcClientType","bcSort"].forEach(id=>document.getElementById(id).oninput=render);
+  document.getElementById("bcShowDone").onchange=render;
+  document.getElementById("bcAddClientBtn").onclick=()=>openClient(null);
   document.getElementById("addTaskBtn").onclick=()=>openTask(null);
   document.getElementById("addClientBtn").onclick=()=>openClient(null);
   document.getElementById("c_save").onclick=saveClient;
