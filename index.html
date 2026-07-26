@@ -218,7 +218,7 @@ function appShell(){
       <h1>Practice Deadline Tracker</h1>
       <div style="text-align:right">
         <div class="asat">As at <b id="today"></b></div>
-        <div class="who">${esc(session?.user?.email||"")}<button class="btn-ghost btn-sm" id="signOut">Sign out</button></div>
+        <div class="who" style="color:#9a6b00">Test mode — no login</div>
       </div>
     </header>
     <p class="tagline">Shared across your team. Priority is worked out from today's date — overdue and imminent jobs surface first.</p>
@@ -432,7 +432,6 @@ function mountApp(){
   document.getElementById("c_delete").onclick=deleteClient;
   document.getElementById("t_save").onclick=saveTask;
   document.getElementById("t_delete").onclick=deleteTask;
-  document.getElementById("signOut").onclick=async()=>{ await supabase.auth.signOut(); location.reload(); };
   document.querySelectorAll("[data-close]").forEach(b=>b.onclick=closeModals);
   document.querySelectorAll(".overlay").forEach(o=>o.onclick=e=>{if(e.target===o)closeModals();});
   document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModals();});
@@ -462,13 +461,6 @@ function mountLogin(msg){
       `<div class="banner"><b>Setup needed.</b> Open <code>index.html</code> and paste your Supabase project URL and anon key into the CONFIG section near the top of the script, then reload. Full steps are in <code>README.md</code>.</div>`;
     return;
   }
-  const {data:{session:s}}=await supabase.auth.getSession();
-  session=s;
-  supabase.auth.onAuthStateChange((_e,newSession)=>{
-    const wasIn=!!session; session=newSession;
-    if(!!session!==wasIn) location.reload();
-  });
-  if(!session){ mountLogin(); return; }
   await fetchAll(); mountApp();
 })();
 </script>
